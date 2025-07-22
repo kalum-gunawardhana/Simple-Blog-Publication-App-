@@ -7,6 +7,7 @@ import { formatDistanceToNow } from 'date-fns'
 interface Post {
   id: string
   title: string
+  content: string
   excerpt: string
   visibility: 'public' | 'private' | 'premium'
   created_at: string
