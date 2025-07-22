@@ -45,16 +45,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const checkSubscription = async () => {
-      if (user) {
-        const { data } = await supabase
+      if (!user) {
+        setIsSubscribed(false)
+        return
+      }
+
+      try {
+        // First, check if a subscription record exists
+        const { data: existingSubscription, error: fetchError } = await supabase
           .from('user_subscriptions')
-          .select('subscription_status')
+          .select('*')
           .eq('user_id', user.id)
-          .eq('subscription_status', 'active')
-          .single()
-        
-        setIsSubscribed(!!data)
-      } else {
+          .maybeSingle()
+
+        if (fetchError) {
+          console.error('Error checking subscription:', fetchError)
+          setIsSubscribed(false)
+          return
+        }
+
+        // If no subscription record exists, create one
+        if (!existingSubscription) {
+          const { error: insertError } = await supabase
+            .from('user_subscriptions')
+            .insert({
+              user_id: user.id,
+              subscription_status: 'inactive',
+            })
+
+          if (insertError) {
+            console.error('Error creating subscription record:', insertError)
+          }
+          setIsSubscribed(false)
+          return
+        }
+
+        setIsSubscribed(existingSubscription.subscription_status === 'active')
+      } catch (error) {
+        console.error('Error checking subscription:', error)
         setIsSubscribed(false)
       }
     }
