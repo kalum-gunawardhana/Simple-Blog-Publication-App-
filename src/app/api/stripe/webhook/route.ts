@@ -4,7 +4,7 @@ import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2023-10-16'
+  apiVersion: '2022-11-15'
 });
 
 const supabase = createClient(
@@ -66,8 +66,8 @@ async function handleCheckoutSession(session: Stripe.Checkout.Session) {
         subscription_id: subscription.id,
         price_id: subscription.items.data[0].price.id,
         subscription_status: subscription.status,
-        current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-        current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+        current_period_start: new Date(subscription.current_period_start as number * 1000).toISOString(),
+        current_period_end: new Date(subscription.current_period_end as number * 1000).toISOString(),
       });
     }
   } else if (session.payment_status === 'paid') {
