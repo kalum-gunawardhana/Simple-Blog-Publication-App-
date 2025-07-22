@@ -1,13 +1,17 @@
 'use client'
 
+import { useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Check, Crown, Star, Zap } from 'lucide-react'
+import { Check, Crown, Star, Zap, Loader2 } from 'lucide-react'
+import { stripeProducts } from '@/stripe-config'
 
 export default function SubscribePage() {
   const { user, isSubscribed } = useAuth()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const features = [
     'Access to all premium articles',
@@ -18,9 +22,49 @@ export default function SubscribePage() {
     'Priority support from authors'
   ]
 
-  const handleSubscribe = () => {
-    // This will be implemented when Stripe is configured
-    alert('Stripe integration coming soon! Please check back later.')
+  const handleSubscribe = async () => {
+    if (!user) {
+      window.location.href = '/login'
+      return
+    }
+
+    setLoading(true)
+    setError('')
+
+    try {
+      const product = stripeProducts[0] // Get the sample product
+
+      const response = await fetch('/api/stripe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          price_id: product.priceId,
+          mode: product.mode,
+          success_url: `${window.location.origin}/success`,
+          cancel_url: `${window.location.origin}/subscribe`,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to create checkout session')
+      }
+
+      const { url } = await response.json()
+
+      if (url) {
+        window.location.href = url
+      } else {
+        throw new Error('No checkout URL received')
+      }
+    } catch (error: any) {
+      console.error('Checkout error:', error)
+      setError(error.message || 'Something went wrong. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   if (isSubscribed) {
@@ -44,6 +88,7 @@ export default function SubscribePage() {
     )
   }
 
+  const sampleProduct = stripeProducts[0]
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       <div className="container mx-auto py-16 px-4 max-w-4xl">
@@ -56,6 +101,13 @@ export default function SubscribePage() {
           </p>
         </div>
 
+        {error && (
+          <div className="max-w-md mx-auto mb-8">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <p className="text-red-800 text-sm">{error}</p>
+            </div>
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
           {/* Free Plan */}
           <Card className="relative">
@@ -98,10 +150,15 @@ export default function SubscribePage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Crown className="h-5 w-5 text-yellow-500" />
-                Premium
+                {sampleProduct.name}
               </CardTitle>
-              <CardDescription>For serious readers and learners</CardDescription>
-              <div className="text-3xl font-bold">$9<span className="text-sm font-normal">/month</span></div>
+              <CardDescription>{sampleProduct.description || 'For serious readers and learners'}</CardDescription>
+              <div className="text-3xl font-bold">
+                ${(sampleProduct.price / 100).toFixed(2)}
+                <span className="text-sm font-normal">
+                  /{sampleProduct.mode === 'subscription' ? 'month' : 'one-time'}
+                </span>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <ul className="space-y-2">
@@ -112,9 +169,18 @@ export default function SubscribePage() {
                   </li>
                 ))}
               </ul>
-              <Button className="w-full" onClick={handleSubscribe}>
-                <Zap className="mr-2 h-4 w-4" />
-                Upgrade to Premium
+              <Button className="w-full" onClick={handleSubscribe} disabled={loading}>
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="mr-2 h-4 w-4" />
+                    {sampleProduct.mode === 'subscription' ? 'Subscribe Now' : 'Purchase Now'}
+                  </>
+                )}
               </Button>
             </CardContent>
           </Card>

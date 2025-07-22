@@ -12,6 +12,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
   isSubscribed: boolean
+  subscriptionStatus: string | null
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -21,13 +22,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
   const [isSubscribed, setIsSubscribed] = useState(false)
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null)
 
   useEffect(() => {
     const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      setSession(session)
-      setUser(session?.user ?? null)
-      setLoading(false)
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        setSession(session)
+        setUser(session?.user ?? null)
+      } catch (error) {
+        console.error('Error getting session:', error)
+      } finally {
+        setLoading(false)
+      }
     }
 
     getSession()
@@ -45,45 +52,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const checkSubscription = async () => {
-      if (!user) {
-        setIsSubscribed(false)
-        return
-      }
-
-      try {
-        // First, check if a subscription record exists
-        const { data: existingSubscription, error: fetchError } = await supabase
-          .from('user_subscriptions')
-          .select('*')
-          .eq('user_id', user.id)
-          .maybeSingle()
-
-        if (fetchError) {
-          console.error('Error checking subscription:', fetchError)
-          setIsSubscribed(false)
-          return
-        }
-
-        // If no subscription record exists, create one
-        if (!existingSubscription) {
-          const { error: insertError } = await supabase
-            .from('user_subscriptions')
-            .insert({
-              user_id: user.id,
-              subscription_status: 'inactive',
-            })
-
-          if (insertError) {
-            console.error('Error creating subscription record:', insertError)
+      if (user) {
+        try {
+          // Check if Supabase is properly configured
+          if (!process.env.NEXT_PUBLIC_SUPABASE_URL ||
+            process.env.NEXT_PUBLIC_SUPABASE_URL === 'https://placeholder.supabase.co') {
+            // Use mock subscription status for demo
+            setIsSubscribed(false)
+            setSubscriptionStatus(null)
+            return
           }
-          setIsSubscribed(false)
-          return
-        }
 
-        setIsSubscribed(existingSubscription.subscription_status === 'active')
-      } catch (error) {
-        console.error('Error checking subscription:', error)
+          const { data, error } = await supabase
+            .from('stripe_user_subscriptions')
+            .select('subscription_status')
+            .maybeSingle()
+
+          if (error) {
+            console.error('Error fetching subscription:', error)
+            setIsSubscribed(false)
+            setSubscriptionStatus(null)
+            return
+          }
+
+          const status = data?.subscription_status
+          setSubscriptionStatus(status)
+          setIsSubscribed(status === 'active' || status === 'trialing')
+        } catch (error) {
+          console.error('Error checking subscription:', error)
+          setIsSubscribed(false)
+          setSubscriptionStatus(null)
+        }
+      } else {
         setIsSubscribed(false)
+        setSubscriptionStatus(null)
       }
     }
 
@@ -94,6 +96,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        emailRedirectTo: undefined // Disable email confirmation
+      }
     })
     if (error) throw error
   }
@@ -119,6 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signIn,
     signOut,
     isSubscribed,
+    subscriptionStatus,
   }
 
   return (

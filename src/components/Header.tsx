@@ -2,17 +2,19 @@
 
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/contexts/AuthContext'
 import { Search, PenSquare, User, LogOut, Crown } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 
 export default function Header() {
-  const { user, signOut, isSubscribed } = useAuth()
+  const { user, signOut, isSubscribed, subscriptionStatus } = useAuth()
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -22,7 +24,7 @@ export default function Header() {
             <PenSquare className="h-6 w-6 text-primary" />
             <span className="text-xl font-bold">BlogCraft</span>
           </Link>
-          
+
           <nav className="hidden md:flex items-center space-x-6">
             <Link href="/" className="text-sm font-medium transition-colors hover:text-primary">
               Home
@@ -48,12 +50,19 @@ export default function Header() {
 
           {user ? (
             <div className="flex items-center space-x-2">
+              {isSubscribed && (
+                <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200 hidden sm:flex">
+                  <Crown className="h-3 w-3 mr-1" />
+                  Premium
+                </Badge>
+              )}
+
               <Link href="/dashboard">
                 <Button variant="outline" size="sm">
                   Dashboard
                 </Button>
               </Link>
-              
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon">
@@ -61,6 +70,17 @@ export default function Header() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  {subscriptionStatus && (
+                    <>
+                      <div className="px-2 py-1.5 text-sm">
+                        <div className="flex items-center gap-2">
+                          <Crown className="h-3 w-3 text-yellow-500" />
+                          <span className="capitalize">{subscriptionStatus}</span>
+                        </div>
+                      </div>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
                   <DropdownMenuItem asChild>
                     <Link href="/profile">Profile</Link>
                   </DropdownMenuItem>
@@ -69,6 +89,7 @@ export default function Header() {
                       <Link href="/subscribe">Subscribe</Link>
                     </DropdownMenuItem>
                   )}
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={signOut}>
                     <LogOut className="mr-2 h-4 w-4" />
                     Sign Out

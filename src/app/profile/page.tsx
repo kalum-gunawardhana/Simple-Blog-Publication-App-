@@ -21,7 +21,7 @@ interface UserStats {
 }
 
 export default function ProfilePage() {
-    const { user, loading: authLoading, isSubscribed } = useAuth()
+    const { user, loading: authLoading, isSubscribed, subscriptionStatus } = useAuth()
     const router = useRouter()
     const [email, setEmail] = useState('')
     const [loading, setLoading] = useState(false)
@@ -219,7 +219,7 @@ export default function ProfilePage() {
                                                 <div>
                                                     <p className="font-medium">Premium Member</p>
                                                     <p className="text-sm text-muted-foreground">
-                                                        Access to all premium content and features
+                                                        Status: {subscriptionStatus ? subscriptionStatus.charAt(0).toUpperCase() + subscriptionStatus.slice(1) : 'Active'}
                                                     </p>
                                                 </div>
                                             </>
@@ -237,7 +237,7 @@ export default function ProfilePage() {
                                     </div>
 
                                     <Badge className={isSubscribed ? 'bg-yellow-100 text-yellow-800 border-yellow-200' : 'bg-gray-100 text-gray-800 border-gray-200'}>
-                                        {isSubscribed ? 'Premium' : 'Free'}
+                                        {isSubscribed ? (subscriptionStatus || 'Premium') : 'Free'}
                                     </Badge>
                                 </div>
 
